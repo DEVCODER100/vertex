@@ -23,6 +23,7 @@ LAYOUT: list[tuple[str, list[tuple]]] = [
         ("text", "📋", "rules", "Read these before chatting.", True, "rules"),
         ("text", "🔔", "announce", "Server updates and news.", True, None),
         ("text", "🧸", "roles", "How roles, levels and tiers work.", True, "roles"),
+        ("text", "🤝", "partnership", "Partner servers and promotions. Staff post here.", True, None),
     ]),
     ("🌴 SOCIAL", [
         ("text", "💬", "lounge", "Chat with everyone.", False, None),
@@ -56,7 +57,8 @@ RULES = [
     "🔞 **No NSFW.** Nothing sexual or explicit, in text, pictures, GIFs, names or profile pictures.",
     "⚠️ **No gore or sensitive content.** Keep shocking, violent or disturbing material out of the server.",
     "📵 **No spam.** No flooding, repeated messages, caps spam or mass pings.",
-    "📢 **No server promotion.** No advertising other servers, links or products, in chat or in DMs.",
+    "📢 **No server promotion.** No advertising other servers, links or products, in chat or in DMs. "
+    "Want a partnership? Ask a staff member. Approved partners are posted in #partnership.",
     "🔒 **No doxing.** Never share anyone's personal information, ever.",
     "🤖 **Bot commands go in the bot channels** (#economy and #commands), not in chat.",
     "📷 **Selfies go in #you,** food in #food and pets in #pets. Only post your own pictures.",
@@ -137,7 +139,7 @@ def vcinfo_embed() -> discord.Embed:
 INFO_EMBEDS = {"rules": rules_embed, "roles": roles_embed, "vcinfo": vcinfo_embed}
 
 # Channels only the top staff may write in (everyone else can read, react and nothing more).
-STAFF_ONLY_CHANNELS = ("rules", "announce", "roles", "apply-for-staff")
+STAFF_ONLY_CHANNELS = ("rules", "announce", "roles", "apply-for-staff", "partnership")
 STAFF_POSTERS = ("Owner", "Co-Owner", "Manager")
 
 
