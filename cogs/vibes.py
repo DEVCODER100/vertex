@@ -98,9 +98,64 @@ def build_embed(kind: str, member: discord.abc.User, now: datetime | None = None
     return embed
 
 
+def pair_percent(kind: str, id_a: int, id_b: int, day: str) -> int:
+    """0-100 for two members. Sorted ids, so `A & B` and `B & A` always give the same score."""
+    low, high = sorted((id_a, id_b))
+    digest = hashlib.sha256(f"vertex:{kind}:{low}:{high}:{day}".encode()).digest()
+    return round(int.from_bytes(digest[:8], "big") / 2**64 * 100)
+
+
+PAIR_KINDS = {
+    "ship": {
+        "emoji": "💞", "verb": "are **{v}%** compatible.", "color": 0xFF6FA5,
+        "tiers": ["Not meant to be. Today, anyway.", "Just friends, for now.", "Some spark here.", "Real chemistry.", "Written in the stars."],
+    },
+    "bestie": {
+        "emoji": "🤝", "verb": "are **{v}%** besties.", "color": 0xF1C40F,
+        "tiers": ["Barely know each other.", "Friendly acquaintances.", "Good friends.", "Ride or die.", "Inseparable. Soulmates, basically."],
+    },
+}
+
+
+def build_pair_embed(kind: str, a: discord.abc.User, b: discord.abc.User, now: datetime | None = None) -> discord.Embed:
+    info = PAIR_KINDS[kind]
+    value = pair_percent(kind, a.id, b.id, ist_today(now))
+    embed = discord.Embed(
+        title=f"{info['emoji']} {a.display_name} & {b.display_name}",
+        description=(
+            f"{a.mention} & {b.mention} {info['verb'].format(v=value)}\n\n"
+            f"`{bar(value / 100)}`\n`0%` · `50%` · `100%`\n\n*{info['tiers'][min(4, value // 20)]}*"
+        ),
+        color=info["color"],
+    )
+    embed.set_thumbnail(url=b.display_avatar.url)
+    embed.add_field(name="Changes", value=f"<t:{int(next_reset(now).timestamp())}:R> (midnight IST)", inline=False)
+    return embed
+
+
 class Vibes(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
+
+    async def _pair(self, ctx: commands.Context, kind: str, first: discord.Member, second: discord.Member | None) -> None:
+        a, b = (ctx.author, first) if second is None else (first, second)
+        if a.bot or b.bot:
+            await ctx.send("Bots can't be part of this one. Pick two people.", ephemeral=True)
+            return
+        if a.id == b.id:
+            await ctx.send("Pick two different people.", ephemeral=True)
+            return
+        await ctx.send(embed=build_pair_embed(kind, a, b))
+
+    @commands.hybrid_command(name="ship", description="Check how compatible two people are today (changes at midnight IST).")
+    @app_commands.describe(member="Who to ship you with (or the first person)", other="Optional second person")
+    async def ship(self, ctx: commands.Context, member: discord.Member, other: discord.Member | None = None) -> None:
+        await self._pair(ctx, "ship", member, other)
+
+    @commands.hybrid_command(name="bestie", aliases=["bff"], description="Check how good friends two people are today (changes at midnight IST).")
+    @app_commands.describe(member="Who to check you with (or the first person)", other="Optional second person")
+    async def bestie(self, ctx: commands.Context, member: discord.Member, other: discord.Member | None = None) -> None:
+        await self._pair(ctx, "bestie", member, other)
 
     async def _reply(self, ctx: commands.Context, kind: str, member: discord.Member | None) -> None:
         target = member or ctx.author

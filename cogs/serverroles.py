@@ -8,11 +8,13 @@ from discord.ext import commands
 
 import config
 from cogs.customroles import parse_color
-from rolesutil import arrange_roles, find_role
+from rolesutil import arrange_roles, find_role, upper_rank_names
 
 log = logging.getLogger("vertex.serverroles")
 
 NO_PERMISSIONS = discord.Permissions.none()
+BOTS_ROLE_NAME = "Bots"
+BOTS_ROLE_COLOR = 0x5865F2
 
 
 class ServerRoles(commands.Cog):
@@ -96,6 +98,125 @@ class ServerRoles(commands.Cog):
             return
         await ctx.defer()
         await ctx.send(await self._arrange_note(ctx.guild))
+
+    @commands.hybrid_command(
+        name="hoistroles",
+        aliases=["groups", "hoist"],
+        description="Admin: show the ranks as separate groups in the member list (Owner on top ... down to Level 5).",
+    )
+    @app_commands.describe(from_level="Lowest level badge that gets its own group (default 5)")
+    @commands.guild_only()
+    @commands.has_permissions(administrator=True)
+    @app_commands.default_permissions(administrator=True)
+    async def hoistroles(self, ctx: commands.Context, from_level: int = 5) -> None:
+        guild = ctx.guild
+        if not guild.me.guild_permissions.manage_roles:
+            await ctx.send("I need the **Manage Roles** permission first.", ephemeral=True)
+            return
+        await ctx.defer()
+
+        wanted: dict[discord.Role, bool] = {}
+        for name in upper_rank_names():
+            if (role := find_role(guild, name)) is not None:
+                wanted[role] = True
+        for number, name, *_rest in sorted(config.PRESTIGE_ROLES, reverse=True):
+            if (role := find_role(guild, name)) is not None:
+                wanted[role] = True
+        for badge in config.LEVEL_BADGES:
+            if (role := find_role(guild, badge[1])) is not None:
+                wanted[role] = badge[0] >= from_level
+
+        top = guild.me.top_role
+        changed, skipped = 0, []
+        for role, hoist in wanted.items():
+            if role.hoist == hoist:
+                continue
+            if role.position >= top.position:
+                skipped.append(role.name)
+                continue
+            try:
+                await role.edit(hoist=hoist, reason=f"Member-list groups by {ctx.author} (,hoistroles)")
+                changed += 1
+            except discord.HTTPException:
+                log.exception("Couldn't edit role %s", role.name)
+                skipped.append(role.name)
+
+        lines = [f"✅ Member-list groups updated ({changed} role(s) changed, {len(wanted)} checked)."]
+        lines.append(
+            f"Owner is on top, then the other staff, tiers, Prestige 10 → 1, then Level 100 → Level {from_level}. "
+            f"Levels below {from_level} stay in the normal Online list."
+        )
+        if skipped:
+            lines.append("⚠️ Couldn't change: " + ", ".join(skipped) + ". Move my role above them (Server Settings → Roles), then run this again.")
+        if not wanted:
+            lines.append("I found none of the rank roles. Run `,createroles` and `,setupbadges` first.")
+        await ctx.send("\n".join(lines))
+
+    async def _give_bots_role(self, guild: discord.Guild, role: discord.Role, reason: str) -> tuple[int, list[str]]:
+        added, failed = 0, []
+        for member in guild.members:
+            if not member.bot or role in member.roles:
+                continue
+            try:
+                await member.add_roles(role, reason=reason)
+                added += 1
+            except discord.HTTPException:
+                failed.append(member.display_name)
+        return added, failed
+
+    @commands.hybrid_command(
+        name="botsrole",
+        aliases=["setupbots", "botsgroup"],
+        description="Admin: give every bot a 'Bots' role so they get their own section in the member list.",
+    )
+    @commands.guild_only()
+    @commands.has_permissions(administrator=True)
+    @app_commands.default_permissions(administrator=True)
+    async def botsrole(self, ctx: commands.Context) -> None:
+        guild = ctx.guild
+        if not guild.me.guild_permissions.manage_roles:
+            await ctx.send("I need the **Manage Roles** permission first.", ephemeral=True)
+            return
+        await ctx.defer()
+        role = find_role(guild, BOTS_ROLE_NAME)
+        lines = []
+        if role is None:
+            try:
+                role = await self._create(guild, BOTS_ROLE_NAME, BOTS_ROLE_COLOR, True, f"Created by {ctx.author} with ,botsrole")
+            except discord.HTTPException:
+                log.exception("Couldn't create the Bots role")
+                await ctx.send("I couldn't create the **Bots** role. Do I have Manage Roles?", ephemeral=True)
+                return
+            lines.append(f"✅ Created the {role.mention} role (shown as its own group, no permissions).")
+        else:
+            if not role.hoist and role.position < guild.me.top_role.position:
+                try:
+                    await role.edit(hoist=True, reason="Bots get their own member-list group")
+                except discord.HTTPException:
+                    log.exception("Couldn't hoist the Bots role")
+            lines.append(f"⏭️ The {role.mention} role already exists.")
+        if role.position >= guild.me.top_role.position:
+            await ctx.send("\n".join(lines + ["⚠️ My role is below **Bots**. Move my role above it (Server Settings → Roles), then run this again."]))
+            return
+
+        added, failed = await self._give_bots_role(guild, role, f"Given by {ctx.author} with ,botsrole")
+        lines.append(f"🤖 Gave it to **{added}** bot(s). New bots that join get it automatically.")
+        if failed:
+            lines.append("⚠️ Couldn't give it to: " + ", ".join(failed) + " (their top role is above mine).")
+        lines.append(await self._arrange_note(guild))
+        await ctx.send("\n".join(lines))
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member: discord.Member) -> None:
+        if not member.bot:
+            return
+        role = find_role(member.guild, BOTS_ROLE_NAME)
+        if role is None or role.position >= member.guild.me.top_role.position:
+            return
+        try:
+            await member.add_roles(role, reason="New bot: Bots group")
+        except discord.HTTPException:
+            log.warning("Couldn't give the Bots role to %s", member)
 
     @commands.hybrid_command(name="makerole", aliases=["mkrole"], description="Admin: create one role with no permissions.")
     @commands.guild_only()
