@@ -135,6 +135,23 @@ Owning a **tier role** (from `,shop`, bought with Credits) unlocks your own cust
 - The role has **no permissions**, and names of staff, tier, level and prestige roles are reserved.
 - The limits are in `TIER_FRIEND_LIMITS` in `config.py`.
 
+## Server layout and private voice channels
+
+**`,setupserver`** (admin) builds the layout: WELCOME (rules, announce, roles), SOCIAL (lounge), BOTS (economy,
+commands), MEDIA (you, food, pets), SPECIAL (leaderboards, apply-for-staff, levels), PUBLIC VC (Voice 1-5) and
+PRIVATE VC (vc-info, Join2Create). It only creates what is missing, never deletes or renames, and posts the
+rules / roles / vc-info text once. Read-only channels: rules, announce, roles, levels, vc-info. Edit the rules
+text in `cogs/serverlayout.py` (`RULES`) before running it, or edit the posted message afterwards.
+The bot needs **Manage Channels** and **Move Members**.
+
+- `,announce <text>` (admin) posts an embed in the announce channel.
+- Level-up messages go to the `#levels` channel once it exists.
+- **Join2Create:** join it and the bot makes your own voice channel and moves you in. Use the buttons in the
+  channel's chat, or `,vc lock`, `,vc unlock`, `,vc limit 5`, `,vc rename <name>`, `,vc kick @user`,
+  `,vc ban @user`, `,vc unban @user`, `,vc permit @user` (can join while locked), `,vc transfer @user`.
+  Empty channels delete themselves; if the owner leaves and others stay, the channel passes to one of them.
+- `,sethub #voice-channel` (admin) makes a channel you already have the Join-to-Create hub.
+
 ## Role rank order
 
 `,arrangeroles` puts the roles in this order, highest first (right under the bot's own role):

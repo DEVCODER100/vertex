@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import logging
+import re
 
 import discord
 
 import config
 
 log = logging.getLogger("vertex.rolesutil")
+
+
+def norm_name(name: str) -> str:
+    """Lowercase letters and digits only, so "📋・rules" and "rules" compare equal."""
+    return re.sub(r"[^a-z0-9]", "", name.lower())
 
 
 def match_role(roles, base_name: str):

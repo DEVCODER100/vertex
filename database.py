@@ -101,6 +101,18 @@ CREATE TABLE IF NOT EXISTS afk_pings (
     created_at INTEGER NOT NULL
 );
 
+-- Join-to-create voice: the "hub" channel people join, and the private channels made from it.
+CREATE TABLE IF NOT EXISTS vc_hubs (
+    channel_id INTEGER PRIMARY KEY,
+    guild_id   INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS temp_vcs (
+    channel_id INTEGER PRIMARY KEY,
+    guild_id   INTEGER NOT NULL,
+    owner_id   INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS interactions (
     guild_id INTEGER NOT NULL,
     from_id  INTEGER NOT NULL,
@@ -591,6 +603,46 @@ class Database:
             )
             await self.conn.commit()
         return cur.rowcount > 0
+
+    # ---- join-to-create voice ------------------------------------------
+
+    async def add_vc_hub(self, guild_id: int, channel_id: int) -> None:
+        async with self._lock:
+            await self.conn.execute(
+                "INSERT OR REPLACE INTO vc_hubs (channel_id, guild_id) VALUES (?, ?)", (channel_id, guild_id)
+            )
+            await self.conn.commit()
+
+    async def all_vc_hubs(self) -> list[aiosqlite.Row]:
+        cur = await self.conn.execute("SELECT * FROM vc_hubs")
+        return await cur.fetchall()
+
+    async def remove_vc_hub(self, channel_id: int) -> None:
+        async with self._lock:
+            await self.conn.execute("DELETE FROM vc_hubs WHERE channel_id = ?", (channel_id,))
+            await self.conn.commit()
+
+    async def add_temp_vc(self, guild_id: int, channel_id: int, owner_id: int) -> None:
+        async with self._lock:
+            await self.conn.execute(
+                "INSERT OR REPLACE INTO temp_vcs (channel_id, guild_id, owner_id) VALUES (?, ?, ?)",
+                (channel_id, guild_id, owner_id),
+            )
+            await self.conn.commit()
+
+    async def all_temp_vcs(self) -> list[aiosqlite.Row]:
+        cur = await self.conn.execute("SELECT * FROM temp_vcs")
+        return await cur.fetchall()
+
+    async def set_temp_vc_owner(self, channel_id: int, owner_id: int) -> None:
+        async with self._lock:
+            await self.conn.execute("UPDATE temp_vcs SET owner_id = ? WHERE channel_id = ?", (owner_id, channel_id))
+            await self.conn.commit()
+
+    async def remove_temp_vc(self, channel_id: int) -> None:
+        async with self._lock:
+            await self.conn.execute("DELETE FROM temp_vcs WHERE channel_id = ?", (channel_id,))
+            await self.conn.commit()
 
     # ---- AFK -----------------------------------------------------------
 

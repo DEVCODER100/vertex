@@ -11,6 +11,7 @@ from discord.ext import commands
 
 import config
 import levels
+from rolesutil import norm_name
 
 log = logging.getLogger("vertex.leveling")
 
@@ -63,10 +64,16 @@ class Leveling(commands.Cog):
             if row["prestige"] < config.MAX_PRESTIGE:
                 text += f"\n🌟 Max level! Run `{config.PREFIX}prestige` to start over and earn the next Prestige rank."
 
+        # If the server has a #levels channel (made by ,setupserver), level-ups go there.
+        target = channel
+        for candidate in member.guild.text_channels:
+            if norm_name(candidate.name) == "levels" and candidate.permissions_for(member.guild.me).send_messages:
+                target = candidate
+                break
         try:
-            await channel.send(text)
+            await target.send(text)
         except discord.HTTPException:
-            log.warning("Couldn't send level-up message in %s", channel)
+            log.warning("Couldn't send level-up message in %s", target)
 
     # ---- level + prestige roles --------------------------------------------
 

@@ -35,6 +35,7 @@ HELP_SECTIONS = [
     ("💰 Money & levels", ["Economy", "Leveling", "Prestige", "Leaderboard"]),
     ("🛒 Shop & roles", ["Shop", "CustomRoles"]),
     ("🎲 Gambling", ["Gambling"]),
+    ("🎧 Voice", ["PrivateVC"]),
     ("💞 Family", ["Relationships"]),
     ("🤗 Actions & vibes", ["Social", "Vibes"]),
     ("🧰 Other", ["Afk", "General", "Quiz"]),
