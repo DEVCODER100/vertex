@@ -36,7 +36,7 @@ HELP_SECTIONS = [
     ("🛒 Shop & roles", ["Shop", "CustomRoles"]),
     ("🎲 Gambling", ["Gambling"]),
     ("💞 Family", ["Relationships"]),
-    ("🤗 Actions", ["Social"]),
+    ("🤗 Actions & vibes", ["Social", "Vibes"]),
     ("🧰 Other", ["Afk", "General", "Quiz"]),
 ]
 
