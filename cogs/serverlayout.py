@@ -12,7 +12,7 @@ from discord import app_commands
 from discord.ext import commands
 
 import config
-from rolesutil import norm_name
+from rolesutil import find_role, norm_name
 
 log = logging.getLogger("vertex.serverlayout")
 
@@ -38,7 +38,7 @@ LAYOUT: list[tuple[str, list[tuple]]] = [
     ]),
     ("🎀 SPECIAL", [
         ("text", "💫", "leaderboards", "Use ,lb to see the top players.", False, None),
-        ("text", "🎓", "apply-for-staff", "Want to help run the server? Tell us about yourself and why.", False, None),
+        ("text", "🎓", "apply-for-staff", "Staff applications and info.", True, None),
         ("text", "🚀", "levels", "Level-up announcements.", True, None),
     ]),
     ("🔊 PUBLIC VC", [("voice", "🔊", f"Voice {i}", None, False, None) for i in range(1, 6)]),
@@ -130,6 +130,28 @@ def vcinfo_embed() -> discord.Embed:
 
 INFO_EMBEDS = {"rules": rules_embed, "roles": roles_embed, "vcinfo": vcinfo_embed}
 
+# Channels only the top staff may write in (everyone else can read, react and nothing more).
+STAFF_ONLY_CHANNELS = ("rules", "announce", "roles", "apply-for-staff")
+STAFF_POSTERS = ("Owner", "Co-Owner", "Manager")
+
+
+async def restrict_channel(guild: discord.Guild, channel: discord.TextChannel, reason: str) -> list[str]:
+    """Only STAFF_POSTERS (and the bot) can send messages here. Returns the staff roles that don't exist yet."""
+    await channel.set_permissions(
+        guild.default_role,
+        send_messages=False, send_messages_in_threads=False, create_public_threads=False, create_private_threads=False,
+        reason=reason,
+    )
+    await channel.set_permissions(guild.me, view_channel=True, send_messages=True, embed_links=True, reason=reason)
+    missing = []
+    for name in STAFF_POSTERS:
+        role = find_role(guild, name)
+        if role is None:
+            missing.append(name)
+            continue
+        await channel.set_permissions(role, send_messages=True, send_messages_in_threads=True, reason=reason)
+    return missing
+
 
 class ServerLayout(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
@@ -196,6 +218,11 @@ class ServerLayout(commands.Cog):
                     problems.append(f"❌ {shown}")
                     continue
                 created.append(channel.mention if kind == "text" else channel.name)
+                if kind == "text" and name in STAFF_ONLY_CHANNELS:
+                    try:
+                        await restrict_channel(guild, channel, reason)
+                    except discord.HTTPException:
+                        problems.append(f"⚠️ Couldn't set staff-only posting in {channel.mention}")
                 if info == "hub":
                     hub = channel
                 elif info in INFO_EMBEDS:
@@ -217,6 +244,42 @@ class ServerLayout(commands.Cog):
         lines.append("Edit the rules and roles text any time. Post news in the announce channel with `,announce <text>`.")
         text = "\n".join(lines)
         await ctx.send(text[:1990] + ("…" if len(text) > 1990 else ""))
+
+    @commands.hybrid_command(
+        name="lockchannels",
+        aliases=["restrict"],
+        description="Admin: only Owner, Co-Owner and Manager can post in rules, announce, roles and apply-for-staff.",
+    )
+    @commands.guild_only()
+    @commands.has_permissions(administrator=True)
+    @app_commands.default_permissions(administrator=True)
+    async def lockchannels(self, ctx: commands.Context) -> None:
+        guild = ctx.guild
+        if not guild.me.guild_permissions.manage_channels:
+            await ctx.send("I need the **Manage Channels** permission first.", ephemeral=True)
+            return
+        await ctx.defer()
+        done, absent, missing_roles, problems = [], [], set(), []
+        for name in STAFF_ONLY_CHANNELS:
+            channel = self._find(guild, discord.TextChannel, name)
+            if channel is None:
+                absent.append(name)
+                continue
+            try:
+                missing_roles.update(await restrict_channel(guild, channel, f"Staff-only posting by {ctx.author} (,lockchannels)"))
+                done.append(channel.mention)
+            except discord.HTTPException:
+                log.exception("Couldn't restrict %s", channel)
+                problems.append(f"❌ {channel.mention}")
+        lines = []
+        if done:
+            lines.append("🔒 Only **" + ", ".join(STAFF_POSTERS) + "** can post in: " + ", ".join(done) + ". Everyone else can read and react.")
+        if absent:
+            lines.append("⏭️ Not found (run `,setupserver`): " + ", ".join(absent))
+        if missing_roles:
+            lines.append("⚠️ These roles don't exist yet, so nobody has posting rights from them: " + ", ".join(sorted(missing_roles)) + ". Run `,createroles`, then this command again.")
+        lines += problems
+        await ctx.send("\n".join(lines))
 
     @commands.hybrid_command(name="announce", description="Admin: post an announcement in the announce channel.")
     @app_commands.describe(message="What to announce")

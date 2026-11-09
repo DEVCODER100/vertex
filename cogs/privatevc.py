@@ -245,11 +245,25 @@ class PrivateVC(commands.Cog):
             return
         self.last_created[member.id] = now
 
+        # Discord only lets the bot hand out permissions it has itself, and moving people needs Move Members.
+        have = hub.permissions_for(hub.guild.me)
+        missing = [label for attr, label in (("manage_channels", "Manage Channels"), ("move_members", "Move Members"), ("connect", "Connect")) if not getattr(have, attr)]
+        if missing:
+            log.warning("Can't create private voice channels: the bot lacks %s", ", ".join(missing))
+            try:
+                await member.move_to(None, reason="Bot is missing permissions")
+            except discord.HTTPException:
+                pass
+            try:
+                await hub.send(f"{member.mention} I can't make your channel yet. An admin needs to give my role: **{', '.join(missing)}**.", delete_after=30)
+            except discord.HTTPException:
+                pass
+            return
+
         overwrites = dict(hub.category.overwrites) if hub.category else {}
         overwrites[member] = discord.PermissionOverwrite(connect=True, view_channel=True)
-        overwrites[hub.guild.me] = discord.PermissionOverwrite(
-            connect=True, view_channel=True, manage_channels=True, move_members=True, send_messages=True, embed_links=True
-        )
+        own = {attr: True for attr in ("connect", "view_channel", "manage_channels", "move_members", "send_messages", "embed_links") if getattr(have, attr)}
+        overwrites[hub.guild.me] = discord.PermissionOverwrite(**own)
         try:
             channel = await hub.guild.create_voice_channel(
                 name=default_name(member), category=hub.category, overwrites=overwrites, reason=f"Join-to-create for {member}"

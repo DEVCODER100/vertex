@@ -14,6 +14,8 @@ NEEDED_PERMISSIONS = {
     "read_message_history": "Read Message History",
     "manage_messages": "Manage Messages (removes GIFs/pictures sent too early)",
     "manage_roles": "Manage Roles (level rewards, shop, custom roles)",
+    "manage_channels": "Manage Channels (setupserver, private voice channels)",
+    "move_members": "Move Members (private voice channels)",
 }
 
 
