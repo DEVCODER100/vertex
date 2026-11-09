@@ -48,25 +48,31 @@ LAYOUT: list[tuple[str, list[tuple]]] = [
     ]),
 ]
 
+RULES_INTRO = "This is a safe, peaceful place to hang out, play and make friends. Keep it that way. 💜"
+
 RULES = [
-    "**Be respectful.** No harassment, hate speech, slurs or bullying.",
-    "**No spam.** No flooding, repeated messages, or unwanted DMs and ads.",
-    "**Keep it clean in public channels.** No NSFW, gore or shock content.",
-    "**Protect privacy.** Never share anyone's personal info, and don't dox.",
-    "**Use the right channel.** Bot commands in the bot channels, pictures in the media channels.",
-    "**No cheating.** Don't abuse bugs or alt accounts to farm coins, XP or levels.",
-    "**Listen to staff.** Their decisions are final. Ask politely if you disagree.",
-    "**Follow Discord's Terms of Service and Community Guidelines.**",
+    "🤝 **Respect everyone.** Be kind, make friends and treat people the way you want to be treated.",
+    "🚫 **No harassment, hate or bullying.** No slurs, insults aimed at people, or targeting anyone.",
+    "🔞 **No NSFW.** Nothing sexual or explicit, in text, pictures, GIFs, names or profile pictures.",
+    "⚠️ **No gore or sensitive content.** Keep shocking, violent or disturbing material out of the server.",
+    "📵 **No spam.** No flooding, repeated messages, caps spam or mass pings.",
+    "📢 **No server promotion.** No advertising other servers, links or products, in chat or in DMs.",
+    "🔒 **No doxing.** Never share anyone's personal information, ever.",
+    "🤖 **Bot commands go in the bot channels** (#economy and #commands), not in chat.",
+    "📷 **Selfies go in #you,** food in #food and pets in #pets. Only post your own pictures.",
+    "👮 **Listen to staff.** Got a problem or a complaint? Talk to a staff member and they'll help. "
+    "Please don't argue in chat.",
+    "📜 **Follow Discord's Terms of Service and Community Guidelines.**",
 ]
 
 
 def rules_embed() -> discord.Embed:
     embed = discord.Embed(
         title="📋 Server rules",
-        description="\n".join(f"**{i}.** {rule}" for i, rule in enumerate(RULES, 1)),
+        description=RULES_INTRO + "\n\n" + "\n\n".join(f"**{i}.** {rule}" for i, rule in enumerate(RULES, 1)),
         color=discord.Color.red(),
     )
-    embed.set_footer(text="Breaking the rules can lead to a mute, kick or ban.")
+    embed.set_footer(text="Breaking the rules can lead to a warning, mute, kick or ban.")
     return embed
 
 
@@ -279,6 +285,40 @@ class ServerLayout(commands.Cog):
         if missing_roles:
             lines.append("⚠️ These roles don't exist yet, so nobody has posting rights from them: " + ", ".join(sorted(missing_roles)) + ". Run `,createroles`, then this command again.")
         lines += problems
+        await ctx.send("\n".join(lines))
+
+    @commands.hybrid_command(
+        name="refreshinfo",
+        aliases=["postrules", "updaterules"],
+        description="Admin: update the rules, roles and voice info messages with the latest text.",
+    )
+    @commands.guild_only()
+    @commands.has_permissions(administrator=True)
+    @app_commands.default_permissions(administrator=True)
+    async def refreshinfo(self, ctx: commands.Context) -> None:
+        guild = ctx.guild
+        await ctx.defer()
+        lines = []
+        for channel_name, builder in (("rules", rules_embed), ("roles", roles_embed), ("vc-info", vcinfo_embed)):
+            channel = self._find(guild, discord.TextChannel, channel_name)
+            if channel is None:
+                lines.append(f"⏭️ No #{channel_name} channel (run `,setupserver`).")
+                continue
+            try:
+                old = None
+                async for message in channel.history(limit=30):
+                    if message.author == guild.me and message.embeds:
+                        old = message
+                        break
+                if old is not None:
+                    await old.edit(embed=builder())
+                    lines.append(f"✏️ Updated the message in {channel.mention}.")
+                else:
+                    await channel.send(embed=builder())
+                    lines.append(f"📨 Posted a new message in {channel.mention}.")
+            except discord.HTTPException:
+                log.exception("Couldn't refresh %s", channel_name)
+                lines.append(f"❌ Couldn't update {channel.mention}. Can I read and send messages there?")
         await ctx.send("\n".join(lines))
 
     @commands.hybrid_command(name="announce", description="Admin: post an announcement in the announce channel.")
