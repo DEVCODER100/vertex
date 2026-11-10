@@ -16,36 +16,37 @@ from rolesutil import find_role, norm_name
 
 log = logging.getLogger("vertex.serverlayout")
 
-# (kind, emoji, name, topic, read_only, info)   kind: "text" or "voice"
+# (kind, name, topic, read_only, info)   kind: "text" or "voice"
+# Names are shown as "»-rules" (text) and "» Voice 1" (voice); categories as written, e.g. "[ WELCOME ]".
 # info: text posted once in a newly created channel ("rules", "roles", "vcinfo") or "hub" for Join-to-Create.
 LAYOUT: list[tuple[str, list[tuple]]] = [
-    ("🍄 WELCOME", [
-        ("text", "📋", "rules", "Read these before chatting.", True, "rules"),
-        ("text", "🔔", "announce", "Server updates and news.", True, None),
-        ("text", "🧸", "roles", "How roles, levels and tiers work.", True, "roles"),
-        ("text", "🤝", "partnership", "Partner servers and promotions. Staff post here.", True, None),
+    ("[ WELCOME ]", [
+        ("text", "rules", "Read these before chatting.", True, "rules"),
+        ("text", "announce", "Server updates and news.", True, None),
+        ("text", "roles", "How roles, levels and tiers work.", True, "roles"),
+        ("text", "partnership", "Partner servers and promotions. Staff post here.", True, None),
     ]),
-    ("🌴 SOCIAL", [
-        ("text", "💬", "lounge", "Chat with everyone.", False, None),
+    ("[ SOCIAL ]", [
+        ("text", "lounge", "Chat with everyone.", False, None),
     ]),
-    ("🎮 BOTS", [
-        ("text", "🤖", "economy", "Coins and games: ,daily ,bal ,cf ,slots ,bj", False, None),
-        ("text", "🤖", "commands", "Use any bot command here. Start with ,help", False, None),
+    ("[ BOTS ]", [
+        ("text", "economy", "Coins and games: ,daily ,bal ,cf ,slots ,bj", False, None),
+        ("text", "commands", "Use any bot command here. Start with ,help", False, None),
     ]),
-    ("🗽 MEDIA", [
-        ("text", "📷", "you", "Selfies and pictures of you.", False, None),
-        ("text", "🥗", "food", "Show us what you're eating.", False, None),
-        ("text", "🐰", "pets", "Got a pet? Post it here.", False, None),
+    ("[ MEDIA ]", [
+        ("text", "you", "Selfies and pictures of you.", False, None),
+        ("text", "food", "Show us what you're eating.", False, None),
+        ("text", "pets", "Got a pet? Post it here.", False, None),
     ]),
-    ("🎀 SPECIAL", [
-        ("text", "💫", "leaderboards", "Use ,lb to see the top players.", False, None),
-        ("text", "🎓", "apply-for-staff", "Staff applications and info.", True, None),
-        ("text", "🚀", "levels", "Level-up announcements.", True, None),
+    ("[ SPECIAL ]", [
+        ("text", "leaderboards", "Use ,lb to see the top players.", False, None),
+        ("text", "apply-for-staff", "Staff applications and info.", True, None),
+        ("text", "levels", "Level-up announcements.", True, None),
     ]),
-    ("🔊 PUBLIC VC", [("voice", "🔊", f"Voice {i}", None, False, None) for i in range(1, 6)]),
-    ("🎯 PRIVATE VC", [
-        ("text", "📕", "vc-info", "How your own private voice channel works.", True, "vcinfo"),
-        ("voice", "🎧", "Join2Create", None, False, "hub"),
+    ("[ PUBLIC VC ]", [("voice", f"Voice {i}", None, False, None) for i in range(1, 6)]),
+    ("[ PRIVATE VC ]", [
+        ("text", "vc-info", "How your own private voice channel works.", True, "vcinfo"),
+        ("voice", "Join2Create", None, False, "hub"),
     ]),
 ]
 
@@ -205,8 +206,8 @@ class ServerLayout(commands.Cog):
                     log.exception("Couldn't create category %s", category_name)
                     problems.append(f"❌ {category_name}")
                     continue
-            for kind, emoji, name, topic, locked, info in channels:
-                shown = f"{emoji}・{name}"
+            for kind, name, topic, locked, info in channels:
+                shown = f"» {name}" if kind == "voice" else f"»-{name}"
                 found = self._find(guild, discord.VoiceChannel if kind == "voice" else discord.TextChannel, name)
                 if found is not None:
                     existing.append(found.mention if kind == "text" else found.name)
