@@ -102,12 +102,16 @@ def roles_embed() -> discord.Embed:
         inline=False,
     )
     levels = ", ".join(str(b[0]) for b in config.LEVEL_BADGES if b[0] > 0)
+    gate_note = (
+        f"Level **{config.GIF_MIN_LEVEL}** unlocks GIFs and level **{config.IMAGE_MIN_LEVEL}** unlocks pictures. "
+        if config.MEDIA_GATE_ENABLED
+        else ""
+    )
     embed.add_field(
         name="📈 Level badges",
         value=(
             f"Chat to earn XP and you get a badge at levels {levels}. They never go away.\n"
-            f"Level **{config.GIF_MIN_LEVEL}** unlocks GIFs and level **{config.IMAGE_MIN_LEVEL}** unlocks pictures. "
-            f"Check yours with `{config.PREFIX}r`."
+            f"{gate_note}Check yours with `{config.PREFIX}r`."
         ),
         inline=False,
     )

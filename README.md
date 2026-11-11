@@ -188,7 +188,9 @@ It also gives the roles to everyone who already qualifies. If a role with that n
 - The bot needs **Manage Roles**, and its role must sit **above** these roles (new roles are created below it, so this works by default).
 - Members can't name their custom role "Level ..." or "Prestige ...".
 
-## Level-gated GIFs and pictures
+## Level-gated GIFs and pictures (currently OFF)
+
+**Right now everyone can send GIFs and pictures.** The feature below is switched off with `MEDIA_GATE_ENABLED = False` in `config.py`. Set it to `True` and restart the bot to turn it back on.
 
 - **Level 10+** can send GIFs (Tenor/Giphy links from Discord's GIF picker, direct `.gif` links, `.gif` uploads).
 - **Level 20+** can send pictures (image uploads, and direct links to png/jpg/webp...).

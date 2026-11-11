@@ -1,4 +1,6 @@
-"""Level-gated media: GIFs need level 10, pictures need level 20 (staff are exempt)."""
+"""Level-gated media: GIFs need level 10, pictures need level 20 (staff are exempt).
+
+Currently switched OFF (config.MEDIA_GATE_ENABLED = False), so everyone can post GIFs and pictures."""
 
 import logging
 import time
@@ -23,6 +25,8 @@ class MediaGate(commands.Cog):
         self._warned_no_permission = False
 
     async def _enforce(self, message: discord.Message) -> None:
+        if not config.MEDIA_GATE_ENABLED:
+            return  # switched off: everyone can post GIFs and pictures
         if message.guild is None or message.author.bot or message.webhook_id is not None:
             return
         member = message.author

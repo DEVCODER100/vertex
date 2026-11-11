@@ -109,6 +109,9 @@ PRESTIGE_ROLES = [
     (9, "Prestige 9", "👑", 0xECF0F1),
     (10, "Prestige 10", "🏆", 0xE74C3C),
 ]
+# Only these roles may use @everyone / @here / mention-all-roles (see ,lockeveryone).
+PING_ROLES = ("Owner", "Co-Owner", "Manager")
+
 MAX_LEVEL = 100
 MAX_PRESTIGE = 10
 PRESTIGE_START_LEVEL = 1
@@ -121,6 +124,7 @@ STACK_PRESTIGE_ROLES = True
 
 # Level-gated media: members below these levels can't post GIFs / pictures (staff are exempt).
 # Anyone who has prestiged counts as max level.
+MEDIA_GATE_ENABLED = False  # False: everyone can post GIFs and pictures. True: the two levels below are enforced.
 GIF_MIN_LEVEL = 10
 IMAGE_MIN_LEVEL = 20
 

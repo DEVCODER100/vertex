@@ -218,6 +218,85 @@ class ServerRoles(commands.Cog):
         except discord.HTTPException:
             log.warning("Couldn't give the Bots role to %s", member)
 
+    @commands.hybrid_command(
+        name="lockeveryone",
+        aliases=["lockping", "pingperms"],
+        description="Admin: only Owner, Co-Owner and Manager can use @everyone and @here.",
+    )
+    @commands.guild_only()
+    @commands.has_permissions(administrator=True)
+    @app_commands.default_permissions(administrator=True)
+    async def lockeveryone(self, ctx: commands.Context) -> None:
+        guild = ctx.guild
+        if not guild.me.guild_permissions.manage_roles:
+            await ctx.send("I need the **Manage Roles** permission first.", ephemeral=True)
+            return
+        await ctx.defer()
+
+        top = guild.me.top_role
+        allowed = [role for name in config.PING_ROLES if (role := find_role(guild, name)) is not None]
+        missing = [name for name in config.PING_ROLES if find_role(guild, name) is None]
+        granted, removed, already, blocked, admins = [], [], [], [], []
+
+        async def set_perm(role: discord.Role, value: bool) -> bool:
+            if role.position >= top.position:
+                blocked.append(role.name)
+                return False
+            perms = discord.Permissions(role.permissions.value)
+            perms.mention_everyone = value
+            try:
+                await role.edit(permissions=perms, reason=f"Ping control by {ctx.author} (,lockeveryone)")
+            except discord.HTTPException:
+                log.exception("Couldn't edit mention_everyone on %s", role.name)
+                blocked.append(role.name)
+                return False
+            return True
+
+        # 1) everyone else: switch it off
+        for role in guild.roles:
+            if role in allowed:
+                continue
+            if role.permissions.administrator:
+                admins.append(role.name)  # Administrator always includes it; it can't be limited
+                continue
+            if not role.permissions.mention_everyone:
+                continue
+            if role.managed and not role.is_default():
+                blocked.append(role.name)  # a bot's own role: leave it alone
+            elif await set_perm(role, False):
+                removed.append("everyone" if role.is_default() else role.name)
+        # 2) the three staff roles: switch it on
+        for role in allowed:
+            if role.permissions.mention_everyone or role.permissions.administrator:
+                already.append(role.name)
+            elif await set_perm(role, True):
+                granted.append(role.name)
+
+        lines = ["🔒 **@everyone / @here control**"]
+        if granted:
+            lines.append("✅ Can now ping everyone: " + ", ".join(granted))
+        if already:
+            lines.append("✔️ Already could: " + ", ".join(already))
+        if removed:
+            lines.append("🚫 Removed the permission from: " + ", ".join(removed))
+        if not (granted or removed):
+            lines.append("Nothing needed changing.")
+        if missing:
+            lines.append("⚠️ These roles don't exist yet: " + ", ".join(missing) + ". Run `,createroles`, then this again.")
+        if blocked:
+            lines.append(
+                "⚠️ I couldn't change: " + ", ".join(blocked) + ". Move my role above them, and make sure my role has the "
+                "**Mention Everyone** permission (I can only give out what I have). Or do it by hand: Server Settings → Roles → "
+                "pick the role → turn **Mention @everyone, @here, and All Roles** on or off."
+            )
+        if admins:
+            lines.append(
+                "👑 These roles have **Administrator**, which always allows pinging everyone and can't be limited: "
+                + ", ".join(admins) + ". The server owner can always ping too."
+            )
+        text = "\n".join(lines)
+        await ctx.send(text[:1990] + ("…" if len(text) > 1990 else ""))
+
     @commands.hybrid_command(name="makerole", aliases=["mkrole"], description="Admin: create one role with no permissions.")
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
