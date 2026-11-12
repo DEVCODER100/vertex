@@ -39,7 +39,7 @@ HELP_SECTIONS = [
     ("🎲 Gambling", ["Gambling"]),
     ("🎧 Voice", ["PrivateVC"]),
     ("💞 Family", ["Relationships"]),
-    ("🤗 Actions & vibes", ["Social", "Vibes"]),
+    ("🤗 Actions & vibes", ["Social", "Vibes", "DeadChat"]),
     ("🧰 Other", ["Afk", "General", "Quiz"]),
 ]
 
