@@ -2,7 +2,8 @@
 
 Every 60-90 minutes the bot checks the lounge. If 3+ different people talked in the last 30 minutes
 the chat is alive and it stays quiet; if it's silent or only 1-2 people are around, it posts an
-@everyone with a random line (sometimes a playful roast of a random member). Quiet hours (IST) skip the night. Needs the Mention Everyone permission for the bot (see ,lockeveryone).
+@everyone with a random line. It never pings a specific member. Quiet hours (IST) skip the night.
+Needs the Mention Everyone permission for the bot (see ,lockeveryone).
 """
 
 from __future__ import annotations
@@ -35,23 +36,8 @@ GENERIC = [
     "@everyone beba is gay",
 ]
 
-# {user} is a random member. Light roasts only: nothing about who they are, nothing cruel.
-ROASTS = [
-    "@everyone {user} has been suspiciously quiet. Say something, {user}!",
-    "@everyone {user} is secretly the reason this chat died. Defend yourself!",
-    "@everyone {user} still hasn't picked a main. Tell them what to play 🎮",
-    "@everyone I see {user} lurking. Come out and chat!",
-    "@everyone {user} has the aura of a loading screen today 😭 cheer them up",
-    "@everyone {user} lost to a bot in rock paper scissors. Come judge them",
-    "@everyone {user} owes everyone a hello. Collect it!",
-    "@everyone {user} is the lounge's most wanted. Reason: not chatting",
-]
-
-
-def pick_line(member: discord.Member | None) -> str:
-    """A generic ping, or a roast when a member is available (about 60% of the time)."""
-    if member is not None and random.random() < 0.6:
-        return random.choice(ROASTS).format(user=member.mention)
+def pick_line() -> str:
+    """A random @everyone line. It never pings a specific member."""
     return random.choice(GENERIC)
 
 
@@ -93,17 +79,13 @@ class DeadChat(commands.Cog):
             return
         self._recent.setdefault(message.channel.id, []).append((time.monotonic(), message.author.id))
 
-    def _random_member(self, guild: discord.Guild, channel: discord.TextChannel) -> discord.Member | None:
-        pool = [m for m in guild.members if not m.bot and channel.permissions_for(m).view_channel]
-        return random.choice(pool) if pool else None
-
     async def _send_ping(self, channel: discord.TextChannel) -> bool:
         me = channel.guild.me
         perms = channel.permissions_for(me)
         if not perms.send_messages:
             return False
-        text = pick_line(self._random_member(channel.guild, channel))
-        allowed = discord.AllowedMentions(everyone=perms.mention_everyone, users=True, roles=False)
+        text = pick_line()
+        allowed = discord.AllowedMentions(everyone=perms.mention_everyone, users=False, roles=False)
         try:
             await channel.send(text, allowed_mentions=allowed)
         except discord.HTTPException:
